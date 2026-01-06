@@ -14,10 +14,28 @@ impl PageAllocator {
     pub const fn new() -> Self {  
         Self
     }
+    //Allouer des pages contigues
+    pub unsafe fn allocate_pages(&self, num_pages: usize) -> Option<NonNull<u8>> {
+        let size = num_pages * PAGE_SIZE;
+        let layout = Layout::from_size_align(size, PAGE_SIZE).ok()?;
+
+        unsafe {
+            // alloc:alloc pour simuler vrai pages alloués
+            let ptr = alloc::alloc::alloc(layout);
+            if ptr.is_null() {
+                None
+            } else {
+                Some(NonNull::new_unchecked(ptr))
+            }
+        }
+    }
 }
+
 
 impl Default for PageAllocator {
     fn default() -> Self {
         Self::new()
     }
 }
+
+
