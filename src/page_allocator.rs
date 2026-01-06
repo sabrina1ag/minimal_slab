@@ -8,3 +8,10 @@ use core::ptr::NonNull;
 pub const PAGE_SIZE: usize = 4096;
 
 pub struct PageAllocator;
+
+impl PageAllocator {
+    /// instance page allocator
+    fn new() -> Self { 
+        Self
+    }
+}
