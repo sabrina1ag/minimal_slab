@@ -6,3 +6,5 @@ use core::ptr::NonNull;
 
 /// Taille d'une page en octets (4KB)
 pub const PAGE_SIZE: usize = 4096;
+
+pub struct PageAllocator;
