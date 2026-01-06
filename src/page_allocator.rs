@@ -11,7 +11,13 @@ pub struct PageAllocator;
 
 impl PageAllocator {
     /// instance page allocator
-    fn new() -> Self { 
+    pub const fn new() -> Self {  
         Self
+    }
+}
+
+impl Default for PageAllocator {
+    fn default() -> Self {
+        Self::new()
     }
 }
