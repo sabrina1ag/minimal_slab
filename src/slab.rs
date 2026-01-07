@@ -19,4 +19,34 @@ pub struct Slab {
     /// Nombre d'objets actuellement alloués
     allocated_count: usize,
 }
+impl Slab {
+       /// Vérifie si le slab est plein.
+    pub fn is_full(&self) -> bool {
+        self.free_list.is_none()
+    }
 
+    /// Vérifie si le slab est vide (tous les objets sont libres).
+    pub fn is_empty(&self) -> bool {
+        self.allocated_count == 0
+    }
+
+    /// Retourne le nombre d'objets alloués.
+    pub fn allocated_count(&self) -> usize {
+        self.allocated_count
+    }
+
+    /// Retourne le nombre total d'objets.
+    pub fn capacity(&self) -> usize {
+        self.num_objects
+    }
+
+    /// Retourne la taille de chaque objet.
+    pub fn object_size(&self) -> usize {
+        self.object_size
+    }
+
+    /// Retourne le pointeur vers la mémoire du slab.
+    pub fn memory(&self) -> NonNull<u8> {
+        self.memory
+    }
+}
