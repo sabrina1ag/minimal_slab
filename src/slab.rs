@@ -20,6 +20,46 @@ pub struct Slab {
     allocated_count: usize,
 }
 impl Slab {
+
+
+    pub unsafe fn new(
+        memory: NonNull<u8>,
+        object_size: usize,
+        num_objects: usize,
+    ) -> Self {
+        // Construire la liste libre chaînée en partant du dernier objet vers le premier
+        // Cela garantit que free_list pointe vers le premier objet
+        let mut free_list = None;
+        
+        // Parcourir les objets de la fin vers le début
+        for i in (0..num_objects).rev() {
+            let current = unsafe {
+                memory.as_ptr().add(i * object_size)
+            };
+            
+            // Stocker le pointeur vers le prochain objet (qui sera None pour le dernier)
+            unsafe {
+                core::ptr::write(
+                    current as *mut Option<NonNull<u8>>,
+                    free_list,
+                );
+            }
+            
+            // Mettre à jour free_list pour pointer vers l'objet actuel
+            free_list = unsafe {
+                Some(NonNull::new_unchecked(current))
+            };
+        }
+
+        Self {
+            memory,
+            object_size,
+            num_objects,
+            free_list,
+            allocated_count: 0,
+        }
+    }
+
        /// Vérifie si le slab est plein.
     pub fn is_full(&self) -> bool {
         self.free_list.is_none()
