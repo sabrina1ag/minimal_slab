@@ -17,6 +17,15 @@ impl PageAllocator {
      /// Alloue `num_pages` pages contiguës.
     ///
     /// # Safety
+    ///
+    /// L'appelant doit garantir que:
+    /// - `num_pages > 0`
+    /// - La mémoire allouée ne sera pas utilisée après avoir été libérée
+    ///
+    /// # Returns
+    ///
+    /// Un pointeur vers le début de la mémoire allouée, ou `None` si
+    /// l'allocation a échoué.
     pub unsafe fn allocate_pages(&self, num_pages: usize) -> Option<NonNull<u8>> {
          if num_pages == 0 {  
             return None;
