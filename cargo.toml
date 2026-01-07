@@ -1,1 +1,11 @@
+[package]
+name = "slab-allocator"
+version = "0.1.0"
+edition = "2021"
+description = "Slab allocateur minimal pour environnements no_std"
 
+[dependencies]
+
+[profile.release]
+lto = true           # Utile pour réduire la taille du code d'un allocateur
+codegen-units = 1    # Meilleure optimisation (mais compile plus lent)
