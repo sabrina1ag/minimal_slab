@@ -34,6 +34,23 @@ impl PageAllocator {
             }
         }
     }
+     /// Libère `num_pages` pages précédemment allouées.
+    ///
+    /// # Safety
+    ///
+     pub unsafe fn deallocate_pages(&self, ptr: NonNull<u8>, num_pages: usize) {
+        if num_pages == 0 {  
+            return;
+        }
+
+        let size = num_pages * PAGE_SIZE;
+        let layout = Layout::from_size_align(size, PAGE_SIZE)
+            .expect("Layout should be valid for page size");
+
+        unsafe {
+            alloc::alloc::dealloc(ptr.as_ptr(), layout);
+        }
+    }
 }
 
 
