@@ -60,7 +60,73 @@ impl Slab {
         }
     }
 
-       /// Vérifie si le slab est plein.
+    
+    
+    pub fn allocate(&mut self) -> Option<NonNull<u8>> {
+        let free = self.free_list?;
+
+        // Safety: free est garanti valide car il vient de free_list qui contient
+        // uniquement des pointeurs vers des objets valides dans la mémoire du slab.
+        // Le pointeur a été initialisé lors de la création du slab et pointe vers
+        // une région de mémoire valide de taille object_size.
+        unsafe {
+            // Lire le prochain élément de la liste libre
+            // Safety: free.as_ptr() pointe vers un objet valide qui contient
+            // un Option<NonNull<u8>> stocké lors de l'initialisation
+            self.free_list = core::ptr::read(free.as_ptr() as *const Option<NonNull<u8>>);
+            self.allocated_count += 1;
+        }
+
+        Some(free)
+    }
+
+    /// Libère un objet dans le slab.
+    ///
+    /// # Safety
+    ///
+    /// L'appelant doit garantir que:
+    /// - `ptr` pointe vers un objet précédemment alloué depuis ce slab via `allocate()`
+    /// - L'objet n'a pas déjà été libéré (double-free est undefined behavior)
+    /// - Aucune référence active n'existe vers cet objet (use-after-free est undefined behavior)
+    /// - Le pointeur n'a pas été modifié depuis l'allocation
+    ///
+    /// # Arguments
+    ///
+    /// * `ptr` - Pointeur vers l'objet à libérer
+    ///
+    /// # Returns
+    ///
+    /// `true` si l'objet a été libéré avec succès, `false` si le pointeur
+    /// n'appartient pas à ce slab (dans ce cas, l'objet n'est pas libéré).
+    pub unsafe fn deallocate(&mut self, ptr: NonNull<u8>) -> bool {
+        // Vérifier que le pointeur appartient à ce slab
+        let start = self.memory.as_ptr() as usize;
+        let end = start + self.num_objects * self.object_size;
+        let ptr_addr = ptr.as_ptr() as usize;
+
+        if ptr_addr < start || ptr_addr >= end {
+            return false;
+        }
+
+        // Vérifier l'alignement
+        if (ptr_addr - start) % self.object_size != 0 {
+            return false;
+        }
+
+        // Ajouter à la liste libre
+        // Safety: ptr est garanti valide et aligné, et appartient à ce slab.
+        // Nous écrivons un Option<NonNull<u8>> dans la mémoire de l'objet,
+        // ce qui est sûr car object_size >= sizeof(Option<NonNull<u8>>) (précondition).
+        unsafe {
+            core::ptr::write(ptr.as_ptr() as *mut Option<NonNull<u8>>, self.free_list);
+        }
+        self.free_list = Some(ptr);
+        self.allocated_count -= 1;
+
+        true
+    }
+
+    /// Vérifie si le slab est plein.
     pub fn is_full(&self) -> bool {
         self.free_list.is_none()
     }
