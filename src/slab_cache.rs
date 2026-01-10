@@ -64,4 +64,26 @@ impl SlabCache {
             .map(|s| s.allocated_count())
             .sum()
     }
+
+/// Alloue un nouveau slab et l'ajoute au cache.
+    ///
+    /// # Returns
+    ///
+    /// `true` si un nouveau slab a été alloué avec succès, `false` sinon.
+    fn allocate_new_slab(&mut self) -> bool {
+        // Chercher un emplacement libre dans le cache
+        for slab_opt in &mut self.slabs {
+            if slab_opt.is_none() {
+                unsafe {
+                    // ❌ ERREUR : pas de vérification si allocate_pages() retourne Some
+                    let memory = self.page_allocator.allocate_pages(1).unwrap();
+                    let num_objects = objects_per_page(self.object_size);
+                    *slab_opt = Some(Slab::new(memory, self.object_size, num_objects));
+                    return true;
+                }
+            }
+        }
+
+        false
+    }
 }
