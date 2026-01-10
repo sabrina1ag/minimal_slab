@@ -22,3 +22,24 @@ pub struct SlabCache {
     page_allocator: PageAllocator,
 
 }
+impl SlabCache {
+    /// Crée un nouveau cache de slabs
+    ///
+    /// # Arguments
+    ///
+    /// * `object_size` - Taille de chaque objet en octets (doit être > 0)
+    ///
+    /// # Panics
+    ///
+    /// Panique si `object_size` est 0.
+    pub fn new(object_size: usize) -> Self {
+        if object_size == 0 {
+            panic!("object_size must be greater than 0");
+        }
+
+        Self {
+            object_size,
+            slabs: [None, None],
+            page_allocator: PageAllocator::new(),
+        }
+    }
