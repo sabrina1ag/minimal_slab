@@ -118,5 +118,31 @@ pub fn allocate(&mut self) -> Option<NonNull<u8>> {
         }
 
         None
+
+    }
+
+/// Libère un objet dans le cache.
+    ///
+    /// # Safety
+    ///
+    /// L'appelant doit garantir que `ptr` pointe vers un objet précédemment
+    /// alloué depuis ce cache via `allocate()`.
+    ///
+    /// # Returns
+    ///
+    /// `true` si l'objet a été libéré avec succès, `false` sinon.
+    pub unsafe fn deallocate(&mut self, ptr: NonNull<u8>) -> bool {
+        // Chercher le slab qui contient ce pointeur
+        for slab_opt in &mut self.slabs {
+            if let Some(ref mut slab) = slab_opt {
+                unsafe {
+                    if slab.deallocate(ptr) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        false
     }
 }
