@@ -320,4 +320,223 @@ exemple : un objet de 0x100 octet, contient le pointeur offset 0x80 pour le proc
 # Source : 
 https://www.kernel.org/doc/gorman/html/understand/understand011.html#Sec:%20Per-CPU%20Object%20Cache
 
+expliquer c’est quoi un kernel object ;kernel object (fd, semaphores, file objects)
+Ce modèle a également des implications importantes en matière de sécurité, notamment dans le contexte des vulnérabilités de type use-after-free, heap overflow ou exploitation du kernel heap.
+
+
+
+
+
+
+
+
+
+
+Pourquoi Le Slub Allocator remplace le SLAB ? 
+
+Les évolutions des versions dans SLAB ont fixé beaucoup de bug notamment ; 
+tout ces bugs multiple due à la complexité du code présent dans mm/slab.c, le Slub allocateur vise à adresser ces nombreux concertation dans l'implémentation existante. 
+
+Gestion complexe des files d’objets
+SLAB repose sur de nombreuses files d’objets (object queues) réparties par CPU et par nœud NUMA.Cette gestion est complexe et coûteuse. SLUB supprime complètement ces files : chaque CPU travaille directement sur son slab actif, sans mise en file intermédiaire des objets. Cela simplifie fortement le chemin d’allocation et de libération.
+
+Surcharge mémoire des files d’objets
+Dans SLAB, les files d’objets existent :par CPU,par nœud NUMA,et même sous forme de files “alien” pour les accès distants. Sur de très grands systèmes (centaines ou milliers de CPU/nœuds), cette multiplication entraîne une explosion du nombre de files et des références stockées. Plusieurs gigaoctets de mémoire peuvent être consommés uniquement pour gérer ces structures, sans compter les objets eux-mêmes.
+SLUB élimine ces files, réduisant drastiquement la consommation mémoire et supprimant ce
+risque de dérive.
+
+Surcharge de métadonnées dans SLAB : 
+SLAB stocke ses métadonnées au début de chaque slab.
+ Cela empêche un alignement naturel des objets en mémoire et entraîne un gaspillage d’espace.SLUB déplace toutes les métadonnées dans la structure struct page.
+ Les objets peuvent ainsi être naturellement alignés (par exemple un objet de 128 octets aligné sur 128 octets) et remplir une page sans perte, ce que SLAB ne permet pas.
+
+Reaping Complexe : 
+le mécanisme de cache reaping est complexe sous SLAB, Slub le simplifie comme suit : 
+sur un système mono-processeur, le reaping est inutile ;
+Sur un système SMP, un slab per-CPU est simplement replacé dans une liste de slabs partiels, sans parcours d’objets.
+
+Simplification de la politique NUMA : 
+SLAB applique les politiques NUMA au niveau des objets individuels, ce qui implique de fréquents accès aux politiques mémoire et peut entraîner des alternances coûteuses entre nœuds.
+SLUB délègue entièrement la gestion NUMA à l’allocateur de pages.
+
+
+
+Accumulation des slabs partiels
+SLAB maintient des listes de slabs partiels par nœud NUMA.
+ Avec le temps, ces listes peuvent grossir, augmentant la fragmentation, car ces slabs ne peuvent être réutilisés que par des allocations sur le même nœud.SLUB utilise un pool global de slabs partiels, ce qui permet de réutiliser plus efficacement les slabs et de réduire la fragmentation.
+Fusion des caches (slab merging)
+SLAB maintient de nombreux caches similaires sans mécanisme de regroupement. SLUB détecte les caches équivalents au démarrage et les fusionne automatiquement.
+En pratique, jusqu’à 50 % des caches peuvent être éliminés, ce qui :
+améliore l’utilisation mémoire ;
+réduit la fragmentation ;
+permet de remplir à nouveau des slabs partiellement alloués.
+Diagnostics
+Les outils de diagnostic SLAB sont difficiles à utiliser et nécessitent une recompilation du kernel. SLUB intègre nativement des mécanismes de debug activables dynamiquement (slab_debug), sans pénaliser les chemins critiques.
+
+Resiliency
+Avec les vérifications de cohérence activées, SLUB peut détecter des erreurs courantes (corruption, double free, etc.) et tenter de maintenir le système opérationnel..
+
+Tracing
+SLUB permet le traçage précis des opérations sur un cache donné (slab_debug=T), incluant l’état des objets lors de leur libération, ce qui est précieux pour l’analyse post-mortem.
+
+Performance increase
+Les benchmarks montrent des gains de performance de l’ordre de 5 à 10 % sur des charges comme kernbench.
+Avec des slabs de plus grande taille et une meilleure gestion de la fragmentation, SLUB offre un potentiel de scalabilité supérieur à SLAB.
+
+https://lwn.net/Articles/229096/
+
+
+
+
+
+
+
+
+
+actuellement dans le kernel il ny a plus que le slub allocator, mais si on target un ancien kernel c’est utile a savoir. 
+
+un vulnerable object c’est un objet affecté par une sorte de vulnérabilité. 
+
+D’un point de vue exploit on peut faire quoi ? 
+comme un out of bounds access, si le slots d'après est vide : 
+
+ on peut accéder au métadonnées de cet objet vide et donc les compromettre, si cette objet n’est pas vide, ça reste très tricky à implémenter, ceci sera expliqué plus bas. 
+
+Seconde attaque possible c’est le fait de corrupt some other object so you can imagine that we have if we have another object that contains for example a function pointer and we're able to override the function pointer why out of bounds res of to three and then make the kernel trigger that function point we might be able to hijack the control flow of the kernel execution and n like escalate privileges as an example and this is a much easier approach
+
+Another object ■ For example, leak vmlinux address to bypass KASLR ■ Or gain a better primitive (Arbitrary Address Execution or AARW) to escalate privileges ■ Spoiler: easy and thus the go-to approach
+
+Pour faire du Slub Memory Corruption nous avons besoin de réunir 3 conditions : 
+
+avoir un kernel bug qui provoque un out-of-bounds acces au objet vulnerable (nous n’allons pas aborder comment trouver un kernel bug dans ce document, nous allons supposer qu’on a deja un kernel bug)
+
+Trouver un objet cible (il existe des writeup sur les objets cible du kernel) sur lequel on pourrait faire un exploit ou un data leaks. 
+
+3eme on doit Need to shape (aka groom or massage) Slab memory ○ For OOB: Put vulnerable and target object next to each other ○ For UAF: Put target object into slot of freed vulnerable object. 
+need to figure out how to put the vulnerable and the target object next next to each other and for use of to free we'll need to figure out how to put Target object into a slot that is referenced by use of to free reference
+Nous allons nous centrer sur le 3eme point pour expliquer les exploits : 
+
+Pour les exploits on suppose que les parametres sont assez defaut, on se concentre on single cache corruption. 
+
+Expliquer SLUB : jusqua 64 [ jusqua 83 allocation | exploit
+cache :
+
+struct kmem_cache      
+
+struct kmem_cache { 
+// Per-CPU cache data: 
+struct kmem_cache_cpu __percpu *cpu_slab; 
+// Per-node cache data: 
+struct kmem_cache_node *node[MAX_NUMNODES];
+ ... 
+const char *name;  // Cache name slab_flags_t 
+flags;  // Cache flags unsigned 
+int object_size; // Size of objects unsigned
+int offset; // Freelist pointer offset                                                
+unsigned long min_partial; 
+unsigned int cpu_partial_slabs;
+ }; 
+
+
+struct kmem_cache_cpu __percpu *cpu_slab; il ya une instance de ce pointeur pour chaque per cpu dans le systeme, il est lié a des données concernant un cpu, et la raison derriere ça c’est une question de performance, on aimerait pas avoir plusieurs variables communes pour plusieurs CPU. 
+
+struct kmem_cache_node *node[MAX_NUMNODES]; il ya une instance de ce pointeur pour chaque NUMA (non uniform memory access), c’est aussi pour de la performance, pour les pcs avec differents banque de memoire et proprité d’acces, (on ne pas pas aborder la notion de un seul numa node qui disccus avec plusieurs nodes). 
+
+Nous allons rester sur un seul CPU et un seul NUMA node pour ce qui suit. 
+
+les cpu et les nodes ont des pointeurs vers des slabs, mais les nodes utilise une liste doublement chainé
+
+
+Slab : 
+Pour Chaque Slab dans le linux kernel nous avons une structure slab correspondante, et pour chacun il ya une page structure qui elle correspond à une page physique, dépendant que si la page physique est normale est alloué seulement à ce slab, ou si elle est partagé avec un autre, le layout sera différent. 
+
+struct slab { // Aliased with struct page 
+struct kmem_cache *slab_cache; // Cache this slab belongs to 
+struct slab *next; // Next slab in per-cpu list 
+int slabs; // Slabs left in per-cpu list 
+struct list_head slab_list; // List 
+links in per-node list 
+void *freelist; // Per-slab freelist 
+…
+ }
+
+chaque slab a une backing memory alloué via page_alloc et qui contient les objets slots
+struct slab { // Aliased with struct page void *freelist; // Per-slab freelist ... }
+
+freelist pointe vers le premier slot libre dans le slab, le suivant slot libre est pointé par son precedant pour les autres slots libres. 
+
+le freelist pointeur est stocké prés du milieu de l’objet slot c’est pour  To prevent small-sized overflows corrupting freelist pointer. 
+
+le freelist pointer est hashé, le but c’est de rendre difficile de fake un free list pointeur dans les slub exploit, c’est toujours possible mais au lieu de leak l’adresse du freelist on doit aussi leak l’adresse du cache->random, et du swab(ptr_address), ça reste possible mais ça complique la tâche ! mais ce n’est pas la premiere cible/but d’un exploit kernel !
+
+Quand la liste est allouée totalement, le freelist pointeur est juste NULL. 
+
+Plusieurs Slab peuvent être lié entre eux, on peut avoir deux façons :
+
+ici nous donne le pointeur vers le prochain slab, tandis que le int contient le nombre de slabs dans la liste. 
+liste simplement chaîné pour per cpu cache
+Liste Doublement chaînée pour per node cache
+
+Revenons au cache : 
+per cpu slabs sont lié a un cpu en particulier, donc quand un cpu aura besoin d’un objet il regardera d’abord dans cette liste la, c’est seulement une question de performance (locking, CPU caches; etc)
+
+
+kmem_cache_cpu has one active slab, (réellement le nom c’est CPU Slab pour le slub mode, mais on simplifie le nom pour mieux comprendre, et donc le slab actuellement utilisé on le call “active”)
+
+Un slab active a deux free lists (c’est une notion tres importante pour comprendre pourquoi Slub est la norme aujourd’hui) : 
+
+Free list dans kmem_cache_cpu : 
+le but c’est quand le cpu veut un slots pour faire une operation, il n’a pas besoin de parcourir la liste, il va utiliser l’objet directement pointé par Kmem_cache_cpu 
+
+ Free list dans le slab actif (struct page) : 
+stocké dans struct page du slab et permet de representer l’etat réel du slab, (l’etat officiel des slots libre dans ce slab). il est utilisé quand un slab est partagé, quand il quitte un cpu, ou quand il passe en partiel. 
+
+Pendant les allocations —> seul le pointeur CPU est modifié (rapide, lockless)
+Quand le slab est abandonné ou synchronisé —> la freelist CPU est reversée dans la freelist du slab (struct page)
+
+Les partials Slabs : 
+ils ont uniquement une freelist qui est celle de struct page, Used for allocations once active slab gets full.
+
+kmem_cache_node has list of per-node partial slabs : 
+Son rôle principal est de gérer une liste de slabs partiellement utilisés (partial slabs), ces ne sont plus attachés à un CPU spécifique, Chaque slab de cette liste possède sa mémoire physique et une seule freelist, stockée dans sa struct page qui décrit tous les objets libres du slab.
+
+Tant que les slabs per-CPU ont des objets libres les allocations se font sans lock, localement, les allocations se font sans lock, localement un slab est pris depuis la liste partial du nœud, ce slab est alors migré vers ce CPU et devient son slab actif.
+
+Limite de Large de ces listes : 
+
+Maximum number of kept per-CPU partial slabs is limited, cette limite se voit ici dans la structure du kmem_cache, le cpu_partial_slabs ne peut pas être directement connu comme valeur, cependant nous avons cpu_partial il est lié à ce calcul dans /sys/kernel/slab/$CACHE/cpu_partial, et donc on peut déduire cpu_partial_slabs. 
+
+connaître ce nombre est intéressant pour certain slab attacks, comme la cross-cache attaque, qui utilise le overflowing de per_cpu_per_partial liste,
+En SLUB, le nombre de slabs partiellement utilisés conservés par CPU est volontairement limité afin d’éviter une rétention excessive de mémoire, À l’inverse, SLUB impose un minimum de slabs partiels conservés par nœud NUMA.
+
+
+
+
+voici un schéma qui englobe tout ce qu’on vient de voir : 
+ 
+
+Slub Internals : Allocation Process : 
+il ya 5 tiers de deroulement d’allocation ; 
+
+1- a specific cpu is trying to allocate an object from a specific cache, the first case is per-cpu partial list (lock-list), is empty, si ça n’est pas le cas il retourne le premier objet libre dans la freelist et c’est good ! 
+
+si c’est vide : 
+
+si le lock-less per-CPU freelist est vide, on passe au tier 2, l’allocation depuis le slab freelist (donc avec lock), 
+
+
+
+si les deux freelist sont vide, c’est le cas 3, on alloue, le per-cpu partial slabs, le slab allocator prend le premier slab du per-cpu qui a une partial liste et le rend active (on se retrouve dans le cas 1 et 2). 
+
+si on a pas de per_cpu partial list dispo, on fait de l’allocation depuis le per_node, on prend le premier slab dans la slab list et on l’assigne en active, mais en plus de ça nous allons bouger certaines per_node slabs a la per_cpu liste. l’idée derriere c’est vu qu’on a run out de toute les methodes d’allocations (inferieurs et donc moins couteuse en timing et plus performante) ils faut toute les restocker (le slab active avec une free list per cpu et une freelist (chainé) et une partial list). on se retrouvera dans l’etape 1 et 2 ! 
+
+Allocationg from new slab : quand on a aucune slad per_cpu et per_node dans ce cas ; le slab allocateur va juste allouer un nouveau active slab, 
+
+
+ Allocations happen from active slab : another slab gets assigned as active once free slots in current one run out : 
+let's say we just start allocating many many objects from the same cache on the same CPU so we're going to f the active slap we're going to feel all the P CPU partial slabs and all the per not slabs and at some point a new slap is going to be created with all slots empty and it's going to be assigned as the active slab
+
+faire un schéma ou j’explique les étapes de l’allocation
+expliquer un objet contient quoi
+expliquer NUMA mieux.
 
