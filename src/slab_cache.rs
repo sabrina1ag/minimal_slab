@@ -65,19 +65,32 @@ impl SlabCache {
             .sum()
     }
 
-/// Alloue un nouveau slab et l'ajoute au cache.
+
+    /// Alloue un nouveau slab et l'ajoute au cache.
     ///
     /// # Returns
     ///
-    /// `true` si un nouveau slab a été alloué avec succès, `false` sinon.
-    fn allocate_new_slab(&mut self) -> bool {
+    /// `true` si un nouveau slab a été alloué avec succès, `false` sinon
+    /// (par exemple, si tous les emplacements du cache sont occupés ou si
+    /// l'allocation de page a échoué).
+    ///
+    /// # Safety
+    ///
+    /// Cette fonction est safe car elle gère correctement les allocations
+    /// et initialise le slab de manière sûre. Les opérations unsafe internes
+    /// sont encapsulées et vérifiées.    fn allocate_new_slab(&mut self) -> bool {
         // Chercher un emplacement libre dans le cache
         for slab_opt in &mut self.slabs {
             if slab_opt.is_none() {
                 unsafe {
-                    // ✅ Corrigé avec if let
-                    if let Some(memory) = self.page_allocator.allocate_pages(1) {
-                        let num_objects = objects_per_page(self.object_size);
+                    // Safety: allocate_pages() retourne un pointeur valide ou None.
+                    // Si Some, la mémoire est valide et alignée sur PAGE_SIZE.                    if let Some(memory) = self.page_allocator.allocate_pages(1) {
+                    
+                       let num_objects = objects_per_page(self.object_size);
+                        // Safety: Slab::new() nécessite que la mémoire soit valide,
+                        // alignée, et de taille suffisante. Ces conditions sont satisfaites
+                        // car memory pointe vers une page complète (PAGE_SIZE octets)
+                        // et object_size > 0 (vérifié dans new()).
                         *slab_opt = Some(Slab::new(memory, self.object_size, num_objects));
                         return true;
                     }
@@ -121,20 +134,34 @@ pub fn allocate(&mut self) -> Option<NonNull<u8>> {
 
     }
 
-/// Libère un objet dans le cache.
+  /// Libère un objet dans le cache.
     ///
     /// # Safety
     ///
-    /// L'appelant doit garantir que `ptr` pointe vers un objet précédemment
-    /// alloué depuis ce cache via `allocate()`.
+    /// L'appelant doit garantir que:
+    /// - `ptr` pointe vers un objet précédemment alloué depuis ce cache via `allocate()`
+    /// - L'objet n'a pas déjà été libéré (double-free est undefined behavior)
+    /// - Aucune référence active n'existe vers cet objet (use-after-free est undefined behavior)
+    /// - Le pointeur n'a pas été modifié depuis l'allocation
+    ///
+    /// # Arguments
+    ///
+    /// * `ptr` - Pointeur vers l'objet à libérer
     ///
     /// # Returns
     ///
-    /// `true` si l'objet a été libéré avec succès, `false` sinon.
-    pub unsafe fn deallocate(&mut self, ptr: NonNull<u8>) -> bool {
+    /// `true` si l'objet a été libéré avec succès, `false` si le pointeur
+    /// n'appartient pas à ce cache (dans ce cas, l'objet n'est pas libéré).
+    ///
+    /// # Panics
+    ///
+    /// Ne panique jamais, mais retourne `false` pour les pointeurs invalides.   
+     pub unsafe fn deallocate(&mut self, ptr: NonNull<u8>) -> bool {
         // Chercher le slab qui contient ce pointeur
         for slab_opt in &mut self.slabs {
             if let Some(ref mut slab) = slab_opt {
+               // Safety: slab.deallocate() vérifie que ptr appartient au slab.
+                // Si c'est le cas, les préconditions sont satisfaites.
                 unsafe {
                     if slab.deallocate(ptr) {
                         return true;
@@ -149,10 +176,19 @@ pub fn allocate(&mut self) -> Option<NonNull<u8>> {
 
 impl Drop for SlabCache {
     /// Libère automatiquement tous les slabs lors de la destruction du cache.
+    ///
+    /// # Safety
+    ///
+    /// Cette fonction est safe car elle libère uniquement la mémoire qui a été
+    /// allouée par ce cache. Les opérations unsafe sont encapsulées et vérifiées.
     fn drop(&mut self) {
         // Libérer tous les slabs
         for slab_opt in &mut self.slabs {
             if let Some(slab) = slab_opt.take() {
+                 // Safety: slab.memory() retourne le pointeur original alloué par
+                // allocate_pages(1), donc il est valide pour deallocate_pages(ptr, 1).
+                // Aucune référence active n'existe vers cette mémoire car nous prenons
+                // possession du slab avec take().
                 unsafe {
                     self.page_allocator.deallocate_pages(slab.memory(), 1);
                 }
