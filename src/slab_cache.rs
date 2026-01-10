@@ -93,7 +93,7 @@ impl SlabCache {
     /// # Returns
     ///
     /// Un pointeur vers l'objet alloué, ou `None` si l'allocation a échoué.
-    pub fn allocate(&mut self) -> Option<NonNull<u8>> {
+pub fn allocate(&mut self) -> Option<NonNull<u8>> {
         // Chercher un slab avec de l'espace libre
         for slab_opt in &mut self.slabs {
             if let Some(ref mut slab) = slab_opt {
@@ -103,7 +103,20 @@ impl SlabCache {
             }
         }
 
-        self.allocate_new_slab();
+        // Tous les slabs sont pleins ou n'existent pas, allouer un nouveau slab
+        if !self.allocate_new_slab() {  // ✅ Vérification ajoutée
+            return None;
+        }
+
+        // ✅ Réessayer l'allocation depuis le nouveau slab
+        for slab_opt in &mut self.slabs {
+            if let Some(ref mut slab) = slab_opt {
+                if !slab.is_full() {
+                    return slab.allocate();
+                }
+            }
+        }
+
         None
     }
 }
