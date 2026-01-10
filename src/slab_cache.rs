@@ -1,3 +1,4 @@
+
 //! # Slab Cache
 //!
 //! Un cache de slabs gère plusieurs slabs et alloue automatiquement
@@ -22,8 +23,9 @@ pub struct SlabCache {
     page_allocator: PageAllocator,
 
 }
+
 impl SlabCache {
-    /// Crée un nouveau cache de slabs
+    /// Crée un nouveau cache de slabs.
     ///
     /// # Arguments
     ///
@@ -33,7 +35,7 @@ impl SlabCache {
     ///
     /// Panique si `object_size` est 0.
     pub fn new(object_size: usize) -> Self {
-        if object_size == 0 {
+        if object_size == 0 {  // ✅ Ajouté
             panic!("object_size must be greater than 0");
         }
 
@@ -43,3 +45,4 @@ impl SlabCache {
             page_allocator: PageAllocator::new(),
         }
     }
+}
