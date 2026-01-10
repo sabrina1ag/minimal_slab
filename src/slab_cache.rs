@@ -146,3 +146,17 @@ pub fn allocate(&mut self) -> Option<NonNull<u8>> {
         false
     }
 }
+
+impl Drop for SlabCache {
+    /// Libère automatiquement tous les slabs lors de la destruction du cache.
+    fn drop(&mut self) {
+        // Libérer tous les slabs
+        for slab_opt in &mut self.slabs {
+            if let Some(slab) = slab_opt.take() {
+                unsafe {
+                    self.page_allocator.deallocate_pages(slab.memory(), 1);
+                }
+            }
+        }
+    }
+}
