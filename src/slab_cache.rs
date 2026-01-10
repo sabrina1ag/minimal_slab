@@ -75,15 +75,15 @@ impl SlabCache {
         for slab_opt in &mut self.slabs {
             if slab_opt.is_none() {
                 unsafe {
-                    // ❌ ERREUR : pas de vérification si allocate_pages() retourne Some
-                    let memory = self.page_allocator.allocate_pages(1).unwrap();
-                    let num_objects = objects_per_page(self.object_size);
-                    *slab_opt = Some(Slab::new(memory, self.object_size, num_objects));
-                    return true;
+                    // ✅ Corrigé avec if let
+                    if let Some(memory) = self.page_allocator.allocate_pages(1) {
+                        let num_objects = objects_per_page(self.object_size);
+                        *slab_opt = Some(Slab::new(memory, self.object_size, num_objects));
+                        return true;
+                    }
                 }
             }
         }
 
         false
-    }
-}
+    }}
