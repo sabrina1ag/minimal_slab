@@ -45,4 +45,23 @@ impl SlabCache {
             page_allocator: PageAllocator::new(),
         }
     }
+
+  /// Retourne la taille des objets dans ce cache.
+    pub fn object_size(&self) -> usize {
+        self.object_size
+    }
+
+    /// Retourne le nombre de slabs actuellement dans le cache.
+    pub fn slab_count(&self) -> usize {
+        self.slabs.iter().filter(|s| s.is_some()).count()
+    }
+
+    /// Retourne le nombre total d'objets alloués dans tous les slabs.
+    pub fn total_allocated(&self) -> usize {
+        self.slabs
+            .iter()
+            .filter_map(|s| s.as_ref())
+            .map(|s| s.allocated_count())
+            .sum()
+    }
 }
