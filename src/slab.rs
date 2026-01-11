@@ -26,9 +26,21 @@ pub fn objects_per_page(object_size: usize) -> usize {
     PAGE_SIZE / object_size
 }
 impl Slab {
-
-
-
+    /// # Safety
+    ///
+    /// L'appelant doit garantir que:
+    /// - `memory` pointe vers au moins `num_objects * object_size` octets de mémoire valide
+    /// - La mémoire est alignée sur `object_size`
+    /// - `object_size >= core::mem::size_of::<Option<NonNull<u8>>>()` pour permettre le stockage
+    ///   des pointeurs de la liste libre dans les objets libres
+    /// - `object_size > 0` et `num_objects > 0`
+    /// - La mémoire n'est pas utilisée ailleurs et reste valide pour la durée de vie du slab
+    ///
+    /// # Arguments
+    ///
+    /// * `memory` - Pointeur vers le début de la mémoire
+    /// * `object_size` - Taille de chaque objet en octets
+    /// * `num_objects` - Nombre d'objets dans le slab
     pub unsafe fn new(
         memory: NonNull<u8>,
         object_size: usize,
