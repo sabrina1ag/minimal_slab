@@ -96,4 +96,10 @@ fn slab_cache_deallocate_invalid_pointer() {
     }
 }
 
+#[test]
+#[should_panic]
+fn slab_cache_zero_size_panics() {
+    SlabCache::new(0);
+}
+
 }
