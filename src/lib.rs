@@ -84,4 +84,16 @@ fn slab_cache_multiple_slabs() {
     assert_eq!(cache.total_allocated(), ptrs.len());
 }
 
+#[test]
+fn slab_cache_deallocate_invalid_pointer() {
+    let mut cache = SlabCache::new(32);
+
+    let fake_ptr = core::ptr::NonNull::dangling();
+
+    unsafe {
+        let ok = cache.deallocate(fake_ptr);
+        assert!(!ok);
+    }
+}
+
 }
