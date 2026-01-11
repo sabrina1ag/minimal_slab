@@ -17,4 +17,14 @@ mod tests {
         assert_eq!(cache.slab_count(), 0);
         assert_eq!(cache.total_allocated(), 0);
     }
+
+    #[test]
+    fn slab_cache_allocate_one() {
+    let mut cache = SlabCache::new(64);
+
+    let ptr = cache.allocate();
+    assert!(ptr.is_some());
+    assert_eq!(cache.total_allocated(), 1);
+}
+
 }
