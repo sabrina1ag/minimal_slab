@@ -78,14 +78,15 @@ impl SlabCache {
     ///
     /// Cette fonction est safe car elle gère correctement les allocations
     /// et initialise le slab de manière sûre. Les opérations unsafe internes
-    /// sont encapsulées et vérifiées.    fn allocate_new_slab(&mut self) -> bool {
+    /// sont encapsulées et vérifiées.  
+         fn allocate_new_slab(&mut self) -> bool {
         // Chercher un emplacement libre dans le cache
         for slab_opt in &mut self.slabs {
             if slab_opt.is_none() {
                 unsafe {
                     // Safety: allocate_pages() retourne un pointeur valide ou None.
-                    // Si Some, la mémoire est valide et alignée sur PAGE_SIZE.                    if let Some(memory) = self.page_allocator.allocate_pages(1) {
-                    
+                    // Si Some, la mémoire est valide et alignée sur PAGE_SIZE.                   
+                       if let Some(memory) = self.page_allocator.allocate_pages(1) {
                        let num_objects = objects_per_page(self.object_size);
                         // Safety: Slab::new() nécessite que la mémoire soit valide,
                         // alignée, et de taille suffisante. Ces conditions sont satisfaites
@@ -100,13 +101,18 @@ impl SlabCache {
 
         false
     }
-
-/// Alloue un objet depuis le cache.
+    /// Alloue un objet depuis le cache.
+    ///
+    /// Si tous les slabs sont pleins, un nouveau slab est alloué automatiquement
+    /// (si de l'espace est disponible dans le cache).
     ///
     /// # Returns
     ///
-    /// Un pointeur vers l'objet alloué, ou `None` si l'allocation a échoué.
-pub fn allocate(&mut self) -> Option<NonNull<u8>> {
+    /// Un pointeur vers l'objet alloué, ou `None` si l'allocation a échoué
+    /// (par exemple, si tous les slabs sont pleins et qu'aucun nouveau slab
+    /// ne peut être alloué).
+
+      pub fn allocate(&mut self) -> Option<NonNull<u8>> {
         // Chercher un slab avec de l'espace libre
         for slab_opt in &mut self.slabs {
             if let Some(ref mut slab) = slab_opt {
@@ -173,7 +179,6 @@ pub fn allocate(&mut self) -> Option<NonNull<u8>> {
         false
     }
 }
-
 impl Drop for SlabCache {
     /// Libère automatiquement tous les slabs lors de la destruction du cache.
     ///
