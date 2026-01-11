@@ -40,6 +40,19 @@ mod tests {
     assert!(c.is_some());
     assert_eq!(cache.total_allocated(), 3);
     }
+#[test]
+fn slab_cache_deallocate_one() {
+    let mut cache = SlabCache::new(32);
+
+    let ptr = cache.allocate().unwrap();
+
+    unsafe {
+        let ok = cache.deallocate(ptr);
+        assert!(ok);
+    }
+
+    assert_eq!(cache.total_allocated(), 0);
+}
 
 
 }
