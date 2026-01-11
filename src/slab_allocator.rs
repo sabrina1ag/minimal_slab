@@ -68,3 +68,9 @@ impl SlabAllocator {
         // Pour les grandes allocations, rien à faire ici
     }
 }
+
+impl Default for SlabAllocator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
