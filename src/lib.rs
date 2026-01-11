@@ -25,6 +25,21 @@ mod tests {
     let ptr = cache.allocate();
     assert!(ptr.is_some());
     assert_eq!(cache.total_allocated(), 1);
-}
+    }
+
+    #[test]
+    fn slab_cache_allocate_multiple() {
+    let mut cache = SlabCache::new(32);
+
+    let a = cache.allocate();
+    let b = cache.allocate();
+    let c = cache.allocate();
+
+    assert!(a.is_some());
+    assert!(b.is_some());
+    assert!(c.is_some());
+    assert_eq!(cache.total_allocated(), 3);
+    }
+
 
 }
