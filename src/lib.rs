@@ -68,4 +68,20 @@ fn slab_cache_reuse_after_free() {
     assert_eq!(cache.total_allocated(), 1);
 }
 
+#[test]
+fn slab_cache_multiple_slabs() {
+    let mut cache = SlabCache::new(128);
+
+    // on force plusieurs allocations
+    let mut ptrs = Vec::new();
+    for _ in 0..100 {
+        if let Some(p) = cache.allocate() {
+            ptrs.push(p);
+        }
+    }
+
+    assert!(cache.slab_count() >= 1);
+    assert_eq!(cache.total_allocated(), ptrs.len());
+}
+
 }
