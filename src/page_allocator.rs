@@ -47,6 +47,15 @@ impl PageAllocator {
     ///
     /// # Safety
     ///
+    /// Libère `num_pages` pages précédemment allouées.
+    ///
+    /// # Safety
+    ///
+    /// L'appelant doit garantir que:
+    /// - `ptr` pointe vers une mémoire précédemment allouée par `allocate_pages`
+    /// - `num_pages` correspond au nombre de pages allouées
+    /// - La mémoire n'a pas déjà été libérée
+    /// - Aucune référence active n'existe vers cette mémoire
      pub unsafe fn deallocate_pages(&self, ptr: NonNull<u8>, num_pages: usize) {
         if num_pages == 0 {  
             return;
