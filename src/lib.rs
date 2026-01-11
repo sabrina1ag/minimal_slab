@@ -54,5 +54,18 @@ fn slab_cache_deallocate_one() {
     assert_eq!(cache.total_allocated(), 0);
 }
 
+#[test]
+fn slab_cache_reuse_after_free() {
+    let mut cache = SlabCache::new(64);
+
+    let ptr1 = cache.allocate().unwrap();
+    unsafe {
+        cache.deallocate(ptr1);
+    }
+
+    let ptr2 = cache.allocate();
+    assert!(ptr2.is_some());
+    assert_eq!(cache.total_allocated(), 1);
+}
 
 }
