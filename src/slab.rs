@@ -19,7 +19,14 @@ pub struct Slab {
     /// Nombre d'objets actuellement alloués
     allocated_count: usize,
 }
+/// Calcule combien d'objets de taille `object_size`
+/// peuvent tenir dans une page.
+pub fn objects_per_page(object_size: usize) -> usize {
+    assert!(object_size > 0);
+    PAGE_SIZE / object_size
+}
 impl Slab {
+
 
 
     pub unsafe fn new(
