@@ -65,6 +65,57 @@ fn test_multiple_allocations() {
         for (ptr, _) in pointers {
             allocator.deallocate(ptr, layout);
         }
+
+        
+    }
+}
+
+
+#[test]
+fn test_slab_cache_direct() {
+    let mut cache = SlabCache::new(64);
+    
+    // Allouer plusieurs objets
+    let mut pointers = Vec::new();
+    for _ in 0..100 {
+        if let Some(ptr) = cache.allocate() {
+            pointers.push(ptr);
+        }
+    }
+    
+    assert!(pointers.len() > 0);
+    assert_eq!(cache.slab_count(), 2); // Devrait avoir créé 2 slabs
+    
+    // Libérer tous les objets
+    unsafe {
+        for ptr in pointers {
+            assert!(cache.deallocate(ptr));
+        }
+    }
+}
+
+#[test]
+fn test_allocation_after_deallocation() {
+    let allocator = SlabAllocator::new();
+    let layout = Layout::from_size_align(64, 8).unwrap();
+
+    unsafe {
+        // Allouer
+        let ptr1 = allocator.allocate(layout).unwrap();
+        core::ptr::write(ptr1.as_ptr(), 42u8);
+        
+        // Libérer
+        allocator.deallocate(ptr1, layout);
+        
+        // Réallouer - devrait réutiliser la même mémoire
+        let ptr2 = allocator.allocate(layout).unwrap();
+        
+        // La mémoire peut contenir des données résiduelles ou être réinitialisée
+        // selon l'implémentation, mais elle devrait être accessible
+        core::ptr::write(ptr2.as_ptr(), 100u8);
+        assert_eq!(core::ptr::read(ptr2.as_ptr()), 100);
+        
+        allocator.deallocate(ptr2, layout);
     }
 }
 
