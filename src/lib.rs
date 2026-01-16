@@ -2,13 +2,17 @@
 
 extern crate alloc;
 
+
 pub mod page_allocator;
 pub mod slab;
 pub mod slab_cache;
+pub mod slab_allocator;
 
 #[cfg(test)]
 mod tests {
     use super::slab_cache::SlabCache;
+    extern crate alloc;
+    use alloc::vec::Vec;
 
     #[test]
     fn slab_cache_creation() {
