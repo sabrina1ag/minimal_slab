@@ -28,3 +28,15 @@ Un **Slab** est un bloc de mémoire (généralement une page) divisé en objets 
 
 **Liste libre chaînée:**
 Chaque objet libre contient un pointeur vers le prochain objet libre. Quand un objet est alloué, il est retiré de la liste libre. Quand il est libéré, il est remis en tête de la liste libre.
+
+### 3. Slab Cache
+
+Un **SlabCache** est responsable de la gestion de plusieurs slabs pour une taille d’objet donnée.
+
+**Responsabilités :**
+- Maintenir une collection de slabs
+- Trouver un slab avec de l’espace libre lors d’une allocation
+- Créer un nouveau slab lorsque tous les slabs existants sont pleins
+- Déléguer les opérations d’allocation et de désallocation aux slabs appropriés
+
+Chaque cache correspond à une taille d’objet spécifique.
