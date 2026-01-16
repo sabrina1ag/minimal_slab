@@ -38,6 +38,17 @@ Pour compiler en mode release:
 
 ```bash
 cargo check
+```
+
+**Tests**
+Le projet inclut :
+
+des tests unitaires (src/lib.rs)
+
+des tests d’intégration (tests/)
+
+Pour lancer tous les tests :
+cargo test
 
 ## Sécurité
 
