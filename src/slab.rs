@@ -1,7 +1,7 @@
 //! # Slab
 //! Chaque slab maintient une liste libre des objets disponibles.
-use core::ptr::NonNull;
 use crate::page_allocator::PAGE_SIZE;
+use core::ptr::NonNull;
 
 /// Un slab gère un bloc de mémoire divisé en objets de taille fixe.
 ///
@@ -41,33 +41,22 @@ impl Slab {
     /// * `memory` - Pointeur vers le début de la mémoire
     /// * `object_size` - Taille de chaque objet en octets
     /// * `num_objects` - Nombre d'objets dans le slab
-    pub unsafe fn new(
-        memory: NonNull<u8>,
-        object_size: usize,
-        num_objects: usize,
-    ) -> Self {
+    pub unsafe fn new(memory: NonNull<u8>, object_size: usize, num_objects: usize) -> Self {
         // Construire la liste libre chaînée en partant du dernier objet vers le premier
         // Cela garantit que free_list pointe vers le premier objet
         let mut free_list = None;
-        
+
         // Parcourir les objets de la fin vers le début
         for i in (0..num_objects).rev() {
-            let current = unsafe {
-                memory.as_ptr().add(i * object_size)
-            };
-            
+            let current = unsafe { memory.as_ptr().add(i * object_size) };
+
             // Stocker le pointeur vers le prochain objet (qui sera None pour le dernier)
             unsafe {
-                core::ptr::write(
-                    current as *mut Option<NonNull<u8>>,
-                    free_list,
-                );
+                core::ptr::write(current as *mut Option<NonNull<u8>>, free_list);
             }
-            
+
             // Mettre à jour free_list pour pointer vers l'objet actuel
-            free_list = unsafe {
-                Some(NonNull::new_unchecked(current))
-            };
+            free_list = unsafe { Some(NonNull::new_unchecked(current)) };
         }
 
         Self {
@@ -79,8 +68,6 @@ impl Slab {
         }
     }
 
-    
-    
     pub fn allocate(&mut self) -> Option<NonNull<u8>> {
         let free = self.free_list?;
 

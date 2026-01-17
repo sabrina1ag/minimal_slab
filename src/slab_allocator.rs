@@ -1,11 +1,11 @@
 //! # Slab Allocator
 //!
-//! L'allocateur principal 
+//! L'allocateur principal
 //! Il peut gérer plusieurs caches pour différentes tailles d'objets.
 
+use crate::slab_cache::SlabCache;
 use core::alloc::{GlobalAlloc, Layout};
 use core::ptr::NonNull;
-use crate::slab_cache::SlabCache;
 
 /// Un allocateur de type slab.
 /// Pour chaque taille d'objet demandée, un cache dédié est utilisé.
@@ -25,11 +25,10 @@ impl SlabAllocator {
         }
     }
 
-    
     pub unsafe fn allocate(&self, layout: Layout) -> Option<NonNull<u8>> {
         // Sélectionner le cache approprié selon la taille
         let size = layout.size();
-        
+
         if size <= 64 {
             // Utiliser le cache pour petites allocations
             unsafe {
@@ -51,7 +50,7 @@ impl SlabAllocator {
 
     pub unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout) {
         let size = layout.size();
-        
+
         if size <= 64 {
             // Safety: Même justification que dans allocate()
             unsafe {

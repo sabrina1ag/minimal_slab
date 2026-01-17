@@ -48,8 +48,40 @@ des tests unitaires (src/lib.rs)
 des tests d’intégration (tests/)
 
 Pour lancer tous les tests :
+```bash
 cargo test
+```
+**Formatage (rustfmt)**
 
+Vérifier le formatage :
+```bash
+cargo fmt -- --check
+```
+
+Appliquer le formatage :
+```bash
+cargo fmt
+```
+
+Lint (clippy)
+
+Lancer clippy sur tous les targets (lib + tests) :
+```bash
+cargo clippy --all-targets
+```
+**Tests Miri (détection d’UB)**
+
+Miri détecte certains comportements indéfinis (use-after-free, aliasing invalide, etc.).
+
+Installer Miri :
+```bash
+rustup +nightly component add miri
+```
+
+Lancer les tests avec Miri :
+```bash
+cargo +nightly miri test --lib
+```
 ## Sécurité
 
 ### Documentation des blocs unsafe

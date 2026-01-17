@@ -11,10 +11,10 @@ pub struct PageAllocator;
 
 impl PageAllocator {
     /// instance page allocator
-    pub const fn new() -> Self {  
+    pub const fn new() -> Self {
         Self
     }
-     /// Alloue `num_pages` pages contiguës.
+    /// Alloue `num_pages` pages contiguës.
     ///
     /// # Safety
     ///
@@ -27,7 +27,7 @@ impl PageAllocator {
     /// Un pointeur vers le début de la mémoire allouée, ou `None` si
     /// l'allocation a échoué.
     pub unsafe fn allocate_pages(&self, num_pages: usize) -> Option<NonNull<u8>> {
-         if num_pages == 0 {  
+        if num_pages == 0 {
             return None;
         }
         let size = num_pages * PAGE_SIZE;
@@ -43,7 +43,7 @@ impl PageAllocator {
             }
         }
     }
-     /// Libère `num_pages` pages précédemment allouées.
+    /// Libère `num_pages` pages précédemment allouées.
     ///
     /// # Safety
     ///
@@ -56,14 +56,14 @@ impl PageAllocator {
     /// - `num_pages` correspond au nombre de pages allouées
     /// - La mémoire n'a pas déjà été libérée
     /// - Aucune référence active n'existe vers cette mémoire
-     pub unsafe fn deallocate_pages(&self, ptr: NonNull<u8>, num_pages: usize) {
-        if num_pages == 0 {  
+    pub unsafe fn deallocate_pages(&self, ptr: NonNull<u8>, num_pages: usize) {
+        if num_pages == 0 {
             return;
         }
 
         let size = num_pages * PAGE_SIZE;
-        let layout = Layout::from_size_align(size, PAGE_SIZE)
-            .expect("Layout should be valid for page size");
+        let layout =
+            Layout::from_size_align(size, PAGE_SIZE).expect("Layout should be valid for page size");
 
         unsafe {
             alloc::alloc::dealloc(ptr.as_ptr(), layout);
@@ -71,11 +71,8 @@ impl PageAllocator {
     }
 }
 
-
 impl Default for PageAllocator {
     fn default() -> Self {
         Self::new()
     }
 }
-
-

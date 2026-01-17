@@ -1,10 +1,9 @@
-
 extern crate alloc;
 
-use std::vec::Vec;
 use core::alloc::Layout;
 use slab_allocator::slab_allocator::SlabAllocator;
 use slab_allocator::slab_cache::SlabCache;
+use std::vec::Vec;
 
 //
 // Tests SlabAllocator

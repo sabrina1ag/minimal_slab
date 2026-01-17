@@ -1,0 +1,1 @@
+/Users/mac/Desktop/projet-rust/minimal_slab/target/debug/libslab_allocator.rlib: /Users/mac/Desktop/projet-rust/minimal_slab/src/lib.rs /Users/mac/Desktop/projet-rust/minimal_slab/src/page_allocator.rs /Users/mac/Desktop/projet-rust/minimal_slab/src/slab.rs /Users/mac/Desktop/projet-rust/minimal_slab/src/slab_cache.rs
